@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"log"
+	"os"
 	"time"
 )
 
@@ -24,6 +26,9 @@ func main() {
 	for index := range allIps {
 		fmt.Println(allIps[index])
 	}
+
+	fmt.Print("Press 'Enter' to exit...")
+	_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
 
 func scrape(page int) []string {
