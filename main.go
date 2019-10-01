@@ -6,29 +6,36 @@ import (
 	"github.com/PuerkitoBio/goquery"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
-const pages = 10
-
 func main() {
+	reader := bufio.NewReader(os.Stdin)
+	pages, err := strconv.ParseInt(askQuestion(reader, "How many pages would you like to scan?"), 0, 64)
+
+	checkErr(err)
+
 	var allIps []string
 
-	for i := 1; i <= pages; i++ {
+	for i := 1; i <= int(pages); i++ {
 		go func(index int) {
-			ips := scrape(index)
-			allIps = append(allIps, ips...)
+			allIps = append(allIps, scrape(index)...)
 		}(i)
 	}
-
 	time.Sleep(time.Second)
-
 	for index := range allIps {
 		fmt.Println(allIps[index])
 	}
-
 	fmt.Print("Press 'Enter' to exit...")
-	_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
+	_, _ = reader.ReadBytes('\n')
+}
+
+func askQuestion(reader *bufio.Reader, question string) string {
+	fmt.Print(question + " ")
+	response, _ := reader.ReadString('\n')
+	return strings.Replace(response, "\r\n", "", 1)
 }
 
 func scrape(page int) []string {
@@ -39,9 +46,7 @@ func scrape(page int) []string {
 	fmt.Println("Preparing to scrape " + pageUrl)
 
 	document, err := goquery.NewDocument(pageUrl)
-	if err != nil {
-		log.Fatal(err)
-	}
+	checkErr(err)
 
 	document.Find("tr td").Each(func(index int, selection *goquery.Selection) {
 		for nodeIndex := range selection.Nodes {
@@ -55,4 +60,10 @@ func scrape(page int) []string {
 		}
 	})
 	return serverAddresses
+}
+
+func checkErr(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }
