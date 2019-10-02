@@ -7,45 +7,67 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 )
 
 func main() {
-	reader := bufio.NewReader(os.Stdin)
-	pages, err := strconv.ParseInt(askQuestion(reader, "How many pages would you like to scan?"), 0, 64)
-
+	scanner := bufio.NewScanner(os.Stdin)
+	pages, err := strconv.ParseInt(askQuestion(scanner, "How many pages would you like to scan?"), 0, 64)
 	checkErr(err)
 
-	var allIps []string
+	ipArray := make([]string, pages * 40)
 
 	for i := 1; i <= int(pages); i++ {
-		go func(index int) {
-			allIps = append(allIps, scrape(index)...)
+		go func(page int) {
+			ips := scrape(page)
+			for index := range ips {
+				var dummyIndex int
+				if page == 1 {
+					dummyIndex = index
+				} else {
+					dummyIndex = page * 40 - index -1
+				}
+				ipArray[dummyIndex] = ips[index]
+			}
 		}(i)
 	}
-	time.Sleep(time.Second)
-	for index := range allIps {
-		fmt.Println(allIps[index])
+	var duration time.Duration
+
+	if pages == 1 {
+		duration = time.Second
+	} else {
+		duration = time.Second * time.Duration(pages / 2)
+	}
+
+	time.Sleep(duration)
+	for index := range ipArray {
+		fmt.Printf("%d - %s\n", index + 1, ipArray[index])
 	}
 	fmt.Print("Press 'Enter' to exit...")
-	_, _ = reader.ReadBytes('\n')
+	_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
 
-func askQuestion(reader *bufio.Reader, question string) string {
+func askQuestion(reader *bufio.Scanner, question string) string {
 	fmt.Print(question + " ")
-	response, _ := reader.ReadString('\n')
-	return strings.Replace(response, "\r\n", "", 1)
+	var response string
+	for reader.Scan() {
+		text := reader.Text()
+		if (len(text) > 0) {
+			response =  text
+			break
+		}
+	}
+	return response
 }
 
 func scrape(page int) []string {
 	var serverAddresses []string
 
-	pageUrl := fmt.Sprintf("https://minecraft-server-list.com/page/%d/", page)
+	pageURL := fmt.Sprintf("https://minecraft-server-list.com/page/%d/", page)
 
-	fmt.Println("Preparing to scrape " + pageUrl)
+	fmt.Println("Preparing to scrape " + pageURL)
 
-	document, err := goquery.NewDocument(pageUrl)
+	document, err := goquery.NewDocument(pageURL)
 	checkErr(err)
 
 	document.Find("tr td").Each(func(index int, selection *goquery.Selection) {
